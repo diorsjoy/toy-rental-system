@@ -15,7 +15,7 @@ import (
 
 func main() {
 	// Setup DB connection
-	db, err := sql.Open("postgres", "postgres://postgres:10122004@localhost/toy_rental?sslmode=disable")
+	db, err := sql.Open("postgres", "postgres://postgres:********@localhost/toy_rental?sslmode=disable")
 	if err != nil {
 		log.Fatal(err)
 	}
