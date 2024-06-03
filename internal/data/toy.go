@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/lib/pq"
 	"time"
 	"toy-rental-system/internal/validator"
@@ -25,7 +26,7 @@ type Toy struct {
 	WaitList       []string  `json:"waitList,omitempty"`
 }
 
-func ValidateToy(v *validator.ValidatorToy, toy *Toy) {
+func ValidateToy(v *validator.Validator, toy *Toy) {
 	v.Check(toy.Title != "", "title", "title must be provided")
 	v.Check(len(toy.Title) <= 500, "title", "title must not be more than 500 bytes long")
 	v.Check(len(toy.Description) <= 5000, "desc", "Description must not be more than 5000 bytes long")
@@ -64,7 +65,7 @@ RETURNING id, created_at`
 
 func (t ToyModel) Get(id int64) (*Toy, error) {
 	if id < 1 {
-		return nil, nil // need to create errors file
+		return nil, ErrRecordNotFound
 	}
 
 	query := `
@@ -96,7 +97,7 @@ WHERE id = $1
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, nil // error should be
+			return nil, ErrRecordNotFound
 		default:
 			return nil, err
 		}
@@ -133,7 +134,7 @@ RETURNING id
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil // add error
+			return ErrEditConflict
 		default:
 			return err
 		}
@@ -146,7 +147,7 @@ RETURNING id
 func (t ToyModel) Delete(id int64) error {
 
 	if id < 1 {
-		return nil // add error
+		return ErrRecordNotFound
 	}
 
 	query := `
@@ -169,8 +170,71 @@ WHERE id = 1$
 	}
 
 	if rowsAffected == 0 {
-		return nil // add error
+		return ErrRecordNotFound
 	}
 	return nil
+
+}
+
+func (t ToyModel) GetAll(title string, filters Filters) ([]*Toy, Metadata, error) {
+	query := fmt.Sprintf(`
+SELECT count(*) OVER(), id, created_at, title, desc, details, skills, categories, recommended_age, manufacturer, value, is_available, wait_list
+FROM toys
+WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
+AND (genres @> $2 OR $2 = '{}')
+ORDER BY %s %s, id ASC
+LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortDirection())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	args := []any{title, filters.limit(), filters.offset()}
+
+	rows, err := t.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, Metadata{}, err // Update this to return an empty Metadata struct.
+	}
+
+	defer rows.Close()
+
+	totalRecords := 0
+
+	toys := []*Toy{}
+
+	for rows.Next() {
+		var toy Toy
+
+		err := rows.Scan(
+			&totalRecords,
+			&toy.ID,
+			&toy.CreatedAt,
+			&toy.Title,
+			&toy.Description,
+			pq.Array(&toy.Details),
+			pq.Array(&toy.Skills),
+			pq.Array(&toy.Categories),
+			&toy.RecommendedAge,
+			&toy.Manufacturer,
+			&toy.Value,
+			&toy.IsAvailable,
+			pq.Array(&toy.WaitList),
+		)
+
+		if err != nil {
+			return nil, Metadata{}, err
+		}
+
+		toys = append(toys, &toy)
+
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, Metadata{}, err // Update this to return an empty Metadata struct.
+
+	}
+
+	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+
+	return toys, metadata, nil
 
 }

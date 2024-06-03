@@ -5,27 +5,27 @@ import (
 	"strings"
 )
 
-type ValidatorToy struct {
+type Validator struct {
 	Errors map[string]string
 }
 
-func New() *ValidatorToy {
-	return &ValidatorToy{Errors: make(map[string]string)}
+func New() *Validator {
+	return &Validator{Errors: make(map[string]string)}
 }
 
-func (v *ValidatorToy) Valid() bool {
+func (v *Validator) Valid() bool {
 	return len(v.Errors) == 0
 }
 
-func (v *ValidatorToy) AddErrorToy(key, message string) {
+func (v *Validator) AddError(key, message string) {
 	if _, exist := v.Errors[key]; !exist {
 		v.Errors[key] = message
 	}
 }
 
-func (v *ValidatorToy) Check(ok bool, key, message string) {
+func (v *Validator) Check(ok bool, key, message string) {
 	if !ok {
-		v.AddErrorToy(key, message)
+		v.AddError(key, message)
 	}
 }
 
@@ -50,7 +50,7 @@ func Unique[T comparable](values []T) bool {
 	return len(values) == len(uniqueValues)
 }
 
-func (v *ValidatorToy) ImageUrlsCheck(images []string) bool {
+func (v *Validator) ImageUrlsCheck(images []string) bool {
 	for i := range images {
 		if !strings.HasPrefix(images[i], "http://") {
 			return false
