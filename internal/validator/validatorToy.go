@@ -1,6 +1,9 @@
 package validator
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 type ValidatorToy struct {
 	Errors map[string]string
@@ -45,4 +48,13 @@ func Unique[T comparable](values []T) bool {
 		uniqueValues[value] = true
 	}
 	return len(values) == len(uniqueValues)
+}
+
+func (v *ValidatorToy) ImageUrlsCheck(images []string) bool {
+	for i := range images {
+		if !strings.HasPrefix(images[i], "http://") {
+			return false
+		}
+	}
+	return true
 }
