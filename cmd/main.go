@@ -4,13 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"flag"
+	"fmt"
 	_ "github.com/lib/pq"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
+	"net/http"
 	"os"
 	"sync"
 	"time"
+	"toy-rental-system/internal/api/handler"
 	"toy-rental-system/internal/config"
+	"toy-rental-system/internal/repository/postgres"
+	"toy-rental-system/internal/service"
 	pkg "toy-rental-system/pkg/jsonlog"
 )
 
@@ -57,8 +62,8 @@ type application struct {
 	config configuration
 	logger pkg.Logger
 	//models data.Models
-
-	wg sync.WaitGroup
+	subscriptionHandler *handler.SubscriptionHandler
+	wg                  sync.WaitGroup
 	//middleware
 }
 
@@ -128,30 +133,42 @@ func main() {
 
 	logger.PrintInfo("RabbitMQ connection established", nil)
 
+	subscriptionRepo := postgres.NewSubscriptionRepository(db)
+	subscriptionService := service.NewSubscriptionService(env, subscriptionRepo)
+	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService)
+
 	app := &application{
-		config: cfg,
-		logger: pkg.Logger{},
+		config:              cfg,
+		logger:              pkg.Logger{},
+		subscriptionHandler: subscriptionHandler,
 		//models: data.NewModels(db),
 		//mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
 	}
 
-	// Call app.serve() to start the server.
-	err = app.serve()
-	if err != nil {
-		logger.PrintFatal(err, nil)
+	srv := &http.Server{
+		Addr:         fmt.Sprintf(":%d", cfg.port),
+		Handler:      app.routes(),
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 30 * time.Second,
 	}
+	// Again, we use the PrintInfo() method to write a "starting server" message at the
+	// INFO level. But this time we pass a map containing additional properties (the
+	// operating environment and server address) as the final parameter.
+	logger.PrintInfo("starting server", map[string]string{
+		"addr": srv.Addr,
+		"env":  cfg.env,
+	})
+	err = srv.ListenAndServe()
+	// Use the PrintFatal() method to log the error and exit.
+	logger.PrintFatal(err, nil)
 
-	//userRepo := repository.NewUserRepository()
-	//toyRepo := repository.NewToyRepository()
-	//subscriptionRepo := postgres.NewSubscriptionRepository()
+	//// Call app.serve() to start the server.
+	//err = app.serve()
+	//if err != nil {
+	//	logger.PrintFatal(err, nil)
+	//}
 
-	//userService := service.NewUserService(userRepo)
-	//toyService := service.NewToyService(toyRepo)
-	//subscriptionService := service.NewSubscriptionService(subscriptionRepo, userService)
-
-	//handler.NewUserHandler(r, userService)
-	//handler.NewToyHandler(r, toyService)
-	//handler.NewSubscriptionHandler(r, subscriptionService)
 }
 
 // The openDB() function returns a sql.DB connection pool.
