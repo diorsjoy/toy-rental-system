@@ -50,6 +50,14 @@ type ToyModel struct {
 	DB *sql.DB
 }
 
+type ToyRepository interface {
+	Insert(toy *Toy) error
+	Get(id int64) (*Toy, error)
+	Update(toy *Toy) error
+	Delete(id int64) error
+	GetAll(title string, skills []string, categories []string, recAge string, filters Filters) ([]*Toy, Metadata, error)
+}
+
 func (t ToyModel) Insert(toy *Toy) error {
 	query := `
 INSERT INTO toys (title, desc, details, skills, categories, images, recommended_age, manufacturer, value, is_available, wait_list)
