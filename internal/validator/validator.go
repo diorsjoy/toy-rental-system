@@ -36,12 +36,14 @@ func (v *Validator) Valid() bool {
 // the given key).
 func (v *Validator) AddError(key, message string) {
 	if _, exists := v.Errors[key]; !exists {
-
-func (v *Validator) AddError(key, message string) {
-	if _, exist := v.Errors[key]; !exist {
 		v.Errors[key] = message
 	}
-}
+
+//func (v *Validator) AddError(key, message string) {
+//	if _, exist := v.Errors[key]; !exist {
+//		v.Errors[key] = message
+//	}
+//}
 
 // Check adds an error message to the map only if a validation check is not 'ok'.
 func (v *Validator) Check(ok bool, key, message string) {

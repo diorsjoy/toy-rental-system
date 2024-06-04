@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
-	_ "github.com/lib/pq"
 	amqp "github.com/rabbitmq/amqp091-go"
 	_ "github.com/streadway/amqp"
 	"log"
@@ -17,35 +16,35 @@ import (
 	"time"
 	"toy-rental-system/internal/api/handler"
 	"toy-rental-system/internal/config"
+	"toy-rental-system/internal/data"
 	"toy-rental-system/internal/repository/postgres"
 	"toy-rental-system/internal/service"
 	pkg "toy-rental-system/pkg/jsonlog"
+	"toy-rental-system/serviceToy"
 )
 
 type configuration struct {
-
 	port int
 	env  string
 	db   struct {
-	dsn          string
-	maxOpenConns int
-	maxIdleConns int
-	maxIdleTime  string
+		dsn          string
+		maxOpenConns int
+		maxIdleConns int
+		maxIdleTime  string
 	}
 	limiter struct {
-	rps     float64
-	burst   int
-	enabled bool
+		rps     float64
+		burst   int
+		enabled bool
 	}
-	}
-
-
+}
 
 type application struct {
-	config configuration
+	config              configuration
 	subscriptionHandler *handler.SubscriptionHandler
-	logger pkg.Logger
-	wg sync.WaitGroup
+	toyHandler          *serviceToy.ToyService
+	logger              pkg.Logger
+	wg                  sync.WaitGroup
 }
 
 func main() {
@@ -101,6 +100,8 @@ func main() {
 	logger.PrintInfo("RabbitMQ connection established", nil)
 
 	subscriptionRepo := postgres.NewSubscriptionRepository(db)
+	toysRepo := data.ToyModel{DB: db}
+	toyService := serviceToy.NewToyService(toysRepo)
 	subscriptionService := service.NewSubscriptionService(env, subscriptionRepo)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService)
 	// Initialize repositories
@@ -116,6 +117,7 @@ func main() {
 		config:              cfg,
 		logger:              pkg.Logger{},
 		subscriptionHandler: subscriptionHandler,
+		toyHandler:          &toyService,
 	}
 
 	srv := &http.Server{
