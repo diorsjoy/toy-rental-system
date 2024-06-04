@@ -9,18 +9,19 @@ import (
 )
 
 type ToyService interface {
-	createToyHandler(w http.ResponseWriter, r *http.Request)
-	showToyHandler(w http.ResponseWriter, r *http.Request)
-	listToysHandler(w http.ResponseWriter, r *http.Request)
-	updateToyHandler(w http.ResponseWriter, r *http.Request)
-	deleteToyHandler(w http.ResponseWriter, r *http.Request)
+	CreateToyHandler(w http.ResponseWriter, r *http.Request)
+	ShowToyHandler(w http.ResponseWriter, r *http.Request)
+	ListToysHandler(w http.ResponseWriter, r *http.Request)
+	UpdateToyHandler(w http.ResponseWriter, r *http.Request)
+	DeleteToyHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type toyService struct {
 	toyRepository data.ToyRepository
+	helper        helpers.Helpers
 }
 
-func (s *toyService) listToysHandler(w http.ResponseWriter, r *http.Request) {
+func (s *toyService) ListToysHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Title          string
 		Skills         []string
@@ -32,13 +33,13 @@ func (s *toyService) listToysHandler(w http.ResponseWriter, r *http.Request) {
 	v := validator.New()
 
 	qs := r.URL.Query()
-	input.Title = helpers.ReadString(qs, "title", "")
-	input.Skills = helpers.ReadCSV(qs, "skills", []string{})
-	input.Categories = helpers.ReadCSV(qs, "categories", []string{})
-	input.Categories = helpers.ReadCSV(qs, "recAge", []string{})
-	input.Page = helpers.ReadInt(qs, "page", 1, v)
-	input.PageSize = helpers.ReadInt(qs, "page_size", 24, v)
-	input.Sort = helpers.ReadString(qs, "sort", "id")
+	input.Title = s.helper.ReadString(qs, "title", "")
+	input.Skills = s.helper.ReadCSV(qs, "skills", []string{})
+	input.Categories = s.helper.ReadCSV(qs, "categories", []string{})
+	input.Categories = s.helper.ReadCSV(qs, "recAge", []string{})
+	input.Page = s.helper.ReadInt(qs, "page", 1, v)
+	input.PageSize = s.helper.ReadInt(qs, "page_size", 24, v)
+	input.Sort = s.helper.ReadString(qs, "sort", "id")
 	input.SortSafeList = []string{"title", "skills", "categories", "-title", "-skills", "-categories"}
 
 	if data.ValidateFilters(v, input.Filters); !v.Valid() {
@@ -50,11 +51,11 @@ func (s *toyService) listToysHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = helpers.WriteJSON(w, http.StatusOK, envelope{"toys": toys, "metadata": metadata}, nil)
+	err = s.helper.WriteJSON(w, http.StatusOK, envelope{"toys": toys, "metadata": metadata}, nil)
 
 }
 
-func (s *toyService) updateToyHandler(w http.ResponseWriter, r *http.Request) {
+func (s *toyService) UpdateToyHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := helpers.ReadIdParam(r)
 	if err != nil {
 		return
@@ -76,7 +77,7 @@ func (s *toyService) updateToyHandler(w http.ResponseWriter, r *http.Request) {
 		Value          *int64    `json:"value"`
 	}
 
-	err = helpers.ReadJSON(w, r, &input)
+	err = s.helper.ReadJSON(w, r, &input)
 	if err != nil {
 		return
 	}
@@ -116,15 +117,15 @@ func (s *toyService) updateToyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = helpers.WriteJSON(w, http.StatusOK, envelope{"toy": toy}, nil)
+	err = s.helper.WriteJSON(w, http.StatusOK, envelope{"toy": toy}, nil)
 	if err != nil {
 		return
 	}
 
 }
 
-func (s *toyService) deleteToyHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := helpers.ReadIdParam(r)
+func (s *toyService) DeleteToyHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := s.helper.ReadIdParam(r)
 	if err != nil {
 		return
 	}
@@ -134,12 +135,12 @@ func (s *toyService) deleteToyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = helpers.WriteJSON(w, http.StatusOK, envelope{"message": "Toy deleted successfully"}, nil)
+	err = s.helper.WriteJSON(w, http.StatusOK, envelope{"message": "Toy deleted successfully"}, nil)
 
 }
 
-func (s *toyService) showToyHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := helpers.ReadIdParam(r)
+func (s *toyService) ShowToyHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := s.helper.ReadIdParam(r)
 
 	if err != nil {
 		return
@@ -164,7 +165,7 @@ func NewToyService(repo data.ToyRepository) ToyService {
 
 type envelope map[string]any
 
-func (s *toyService) createToyHandler(w http.ResponseWriter, r *http.Request) {
+func (s *toyService) CreateToyHandler(w http.ResponseWriter, r *http.Request) {
 
 	var inputToy struct {
 		Title          string   `json:"title"`
@@ -180,7 +181,7 @@ func (s *toyService) createToyHandler(w http.ResponseWriter, r *http.Request) {
 		WaitList       []string `json:"wait_list,omitempty"`
 	}
 
-	err := helpers.ReadJSON(w, r, &inputToy)
+	err := s.helper.ReadJSON(w, r, &inputToy)
 
 	if err != nil {
 		return
@@ -214,7 +215,7 @@ func (s *toyService) createToyHandler(w http.ResponseWriter, r *http.Request) {
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/toys/%d", toy.ID))
 
-	err = helpers.WriteJSON(w, http.StatusCreated, interface{}(envelope{"toy": toy}), headers)
+	err = s.helper.WriteJSON(w, http.StatusCreated, interface{}(envelope{"toy": toy}), headers)
 	if err != nil {
 		return
 	}

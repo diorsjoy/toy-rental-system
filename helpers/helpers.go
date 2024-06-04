@@ -16,9 +16,12 @@ import (
 type envelope map[string]any
 
 type Helpers interface {
-	readIdParam(r *http.Request) (int64, error)
-	writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error
-	readJSON(w http.ResponseWriter, r *http.Request, dst any) error
+	ReadIdParam(r *http.Request) (int64, error)
+	WriteJSON(w http.ResponseWriter, status int, data interface{}, headers http.Header) error
+	ReadJSON(w http.ResponseWriter, r *http.Request, dst any) error
+	ReadString(qs url.Values, key string, defaultValue string) string
+	ReadCSV(qs url.Values, key string, defaultValue []string) []string
+	ReadInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int
 }
 
 func ReadIdParam(r *http.Request) (int64, error) {
