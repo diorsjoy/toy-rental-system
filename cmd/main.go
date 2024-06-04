@@ -5,8 +5,11 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 	_ "github.com/lib/pq"
 	amqp "github.com/rabbitmq/amqp091-go"
+	_ "github.com/streadway/amqp"
 	"log"
 	"net/http"
 	"os"
@@ -100,6 +103,14 @@ func main() {
 	subscriptionRepo := postgres.NewSubscriptionRepository(db)
 	subscriptionService := service.NewSubscriptionService(env, subscriptionRepo)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService)
+	// Initialize repositories
+	userRepository := postgres.NewUserRepository(db)
+
+	// Initialize services
+	userService := service.NewUserService(userRepository)
+
+	r := mux.NewRouter()
+	handler.NewUserHandler(r, userService)
 
 	app := &application{
 		config:              cfg,
@@ -169,4 +180,5 @@ func openDB(cfg config) (*sql.DB, error) {
 	}
 	// Return the sql.DB connection pool.
 	return db, nil
+
 }
