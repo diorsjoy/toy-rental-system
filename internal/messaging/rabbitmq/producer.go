@@ -1,8 +1,15 @@
 package rabbitmq
 
 import (
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
+	"log"
 )
+
+func failOnError(err error, msg string) {
+	if err != nil {
+		log.Panicf("%s: %s", msg, err)
+	}
+}
 
 type Producer struct {
 	conn *amqp.Connection

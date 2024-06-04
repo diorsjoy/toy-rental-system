@@ -14,11 +14,6 @@ type SubscriptionHandler struct {
 }
 
 func NewSubscriptionHandler(r *mux.Router, ss service.SubscriptionService) {
-	handler := &SubscriptionHandler{
-		subscriptionService: ss,
-	}
-
-	r.HandleFunc("/subscribe", handler.Subscribe).Methods("POST")
 }
 
 func (h *SubscriptionHandler) Subscribe(w http.ResponseWriter, r *http.Request) {
