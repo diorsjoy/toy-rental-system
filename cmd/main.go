@@ -4,21 +4,22 @@ import (
 	"context"
 	"database/sql"
 	"flag"
+	_ "github.com/lib/pq"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 	"os"
 	"sync"
 	"time"
+	"toy-rental-system/internal/config"
 	pkg "toy-rental-system/pkg/jsonlog"
-	"toy-rental-system/pkg/utils"
 )
 
 // Add a db struct field to hold the configuration settings for our database connection
 // pool. For now this only holds the DSN, which we will read in from a command-line flag.
-// config struct to hold all the configuration settings for our application.
+// configuration struct to hold all the configuration settings for our application.
 // Add maxOpenConns, maxIdleConns and maxIdleTime fields to hold the configuration
 // settings for the connection pool.
-type config struct {
+type configuration struct {
 	port int
 	env  string
 	db   struct {
@@ -35,14 +36,14 @@ type config struct {
 		burst   int
 		enabled bool
 	}
-	// Update the config struct to hold the SMTP server settings.
-	smtp struct {
-		host     string
-		port     int
-		username string
-		password string
-		sender   string
-	}
+	//// Update the configuration struct to hold the SMTP server settings.
+	//smtp struct {
+	//	host     string
+	//	port     int
+	//	username string
+	//	password string
+	//	sender   string
+	//}
 }
 
 // Define an application struct to hold the dependencies for our HTTP handlers, helpers,
@@ -53,59 +54,59 @@ type config struct {
 // sync.WaitGroup type is a valid, useable, sync.WaitGroup with a 'counter' value of 0,
 // so we don't need to do anything else to initialize it before we can use it.
 type application struct {
-	config config
+	config configuration
 	logger pkg.Logger
 	//models data.Models
-	//mailer mailer.Mailer
+
 	wg sync.WaitGroup
 	//middleware
 }
 
 func main() {
-	// Declare an instance of the config struct.
-	var cfg config
+	// Declare an instance of the configuration struct.
+	var cfg configuration
 
-	env, err := utils.LoadConfig("toy-rental-system/config/app.env")
+	env, err := config.LoadConfig(".")
 	if err != nil {
-		log.Fatal("cannot load config:", err)
+		log.Fatal("cannot load configuration:", err)
 	}
 
-	stripeKey := env.StripeSecret
+	serverAddress := env.ServerAddress
 	dbHost := env.DBSource
-	smtpUser := env.SMTPUsername
-	smtpPass := env.SMTPPassword
+	//smtpUser := env.SMTPUsername
+	//smtpPass := env.SMTPPassword
 	rabbitMQHost := env.RabbitMQSource
 
 	//r := mux.NewRouter()
 
-	// Read the value of the port and env command-line flags into the config struct. We
+	// Read the value of the port and env command-line flags into the configuration struct. We
 	// default to using the port number 4000 and the environment "development"
-	flag.IntVar(&cfg.port, "port", 4000, "API server port")
+	flag.IntVar(&cfg.port, "port", serverAddress, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 
-	// Read the DSN value from the db-dsn command-line flag into the config struct. We
+	// Read the DSN value from the db-dsn command-line flag into the configuration struct. We
 	// default to using our development DSN if no flag is provided.
 	flag.StringVar(&cfg.db.dsn, "db-dsn", dbHost, "PostgreSQL DSN")
 
-	// Read the connection pool settings from command-line flags into the config struct.
+	// Read the connection pool settings from command-line flags into the configuration struct.
 	// Notice the default values that we're using?
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
 
-	// Create command line flags to read the setting values into the config struct.
+	// Create command line flags to read the setting values into the configuration struct.
 	// Notice that we use true as the default for the 'enabled' setting?
 	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
 
-	// Read the SMTP server configuration settings into the config struct, using the
-	// Mailtrap settings as the default values.
-	flag.StringVar(&cfg.smtp.host, "smtp-host", "smtp.mailtrap.io", "SMTP host")
-	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
-	flag.StringVar(&cfg.smtp.username, "smtp-username", smtpUser, "SMTP username")
-	flag.StringVar(&cfg.smtp.password, "smtp-password", smtpPass, "SMTP password")
-	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Oyna <no-reply@oyna.com>", "SMTP sender")
+	//// Read the SMTP server configuration settings into the configuration struct, using the
+	//// Mailtrap settings as the default values.
+	//flag.StringVar(&cfg.smtp.host, "smtp-host", "smtp.mailtrap.io", "SMTP host")
+	//flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
+	//flag.StringVar(&cfg.smtp.username, "smtp-username", smtpUser, "SMTP username")
+	//flag.StringVar(&cfg.smtp.password, "smtp-password", smtpPass, "SMTP password")
+	//flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Oyna <no-reply@oyna.com>", "SMTP sender")
 
 	flag.Parse()
 
@@ -154,8 +155,8 @@ func main() {
 }
 
 // The openDB() function returns a sql.DB connection pool.
-func openDB(cfg config) (*sql.DB, error) {
-	// Use sql.Open() to create an empty connection pool, using the DSN from the config
+func openDB(cfg configuration) (*sql.DB, error) {
+	// Use sql.Open() to create an empty connection pool, using the DSN from the configuration
 	// struct.
 	db, err := sql.Open("postgres", cfg.db.dsn)
 	if err != nil {

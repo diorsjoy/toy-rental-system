@@ -1,7 +1,7 @@
 *.yaml
 *.yml
-.env
-.exe
+*.env
+*.exe
 
 # Default ignored files
 /shelf/

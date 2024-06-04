@@ -1,24 +1,37 @@
 package postgres
 
 import (
+	"database/sql"
+	"fmt"
 	"toy-rental-system/internal/domain/entity"
 )
 
-type SubscriptionRepository interface {
-	Save(subscription *entity.Subscription) error
-}
+//type SubscriptionRepository interface {
+//	Save(subscription *entity.Subscription) error
+//}
+//
+//type subscriptionRepository struct {
+//	DB *sql.DB
+//}
 
-type subscriptionRepository struct {
-	subscriptions map[string]*entity.Subscription
-}
+//func NewSubscriptionRepository(db *sql.DB) SubscriptionRepository {
+//	return &subscriptionRepository{
+//		DB: db,
+//	}
+//}
+//
+//func (r *subscriptionRepository) Save(subscription *entity.Subscription) error {
+//	query := `INSERT INTO subscriptions (id, user_id, stripe_subscription_id, plan_id, tokens) VALUES ($1, $2, $3, $4, $5)`
+//	_, err := r.DB.Exec(query, subscription.ID, subscription.UserID, subscription.StripeSubscriptionID, subscription.PlanID, subscription.Tokens)
+//	return err
+//}
 
-func NewSubscriptionRepository() SubscriptionRepository {
-	return &subscriptionRepository{
-		subscriptions: make(map[string]*entity.Subscription),
+func SaveSubscription(subscription entity.Subscription) error {
+	var DB *sql.DB
+	query := `INSERT INTO subscriptions (id, user_id, tokens, price, currency) VALUES ($1, $2, $3, $4, $5)`
+	_, err := DB.Exec(query, subscription.ID, subscription.UserID, subscription.Tokens, subscription.Price, subscription.Currency)
+	if err != nil {
+		return fmt.Errorf("failed to save subscription: %v", err)
 	}
-}
-
-func (r *subscriptionRepository) Save(subscription *entity.Subscription) error {
-	r.subscriptions[subscription.ID] = subscription
 	return nil
 }

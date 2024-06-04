@@ -1,94 +1,66 @@
 package validator
 
-import (
-	"fmt"
-	"net/http"
+import "regexp"
+
+// Declare a regular expression for sanity checking the format of email addresses (we'll
+// use this later in the book). If you're interested, this regular expression pattern is
+// taken from https://html.spec.whatwg.org/#valid-e-mail-address. Note: if you're
+// reading this in PDF or EPUB format and cannot see the full pattern, please see the
+// note further down the page.
+var (
+	EmailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 )
 
-// generic helper jsonlog for errors
-func (app *application) logError(r *http.Request, err error) {
-	// Use the PrintError() method to log the error message, and include the current
-	// request method and URL as properties in the log entry.
-	app.logger.PrintError(err, map[string]string{
-		"request_method": r.Method,
-		"request_url":    r.URL.String(),
-	})
+// Define a new Validator type which contains a map of validation errors.
+type Validator struct {
+	Errors map[string]string
 }
 
-// the errorResponse() method to send JSON-format error with any type on message for versatility
-func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, status int, message any) {
-	env := envelope{"error": message}
+// New is a helper which creates a new Validator instance with an empty errors map.
+func New() *Validator {
+	return &Validator{Errors: make(map[string]string)}
+}
 
-	// response with helper, if error occurs, returns 500 code status
-	err := app.writeJSON(w, status, env, nil)
-	if err != nil {
-		app.logError(r, err)
-		w.WriteHeader(500)
+// Valid returns true if the errors map doesn't contain any entries.
+func (v *Validator) Valid() bool {
+	return len(v.Errors) == 0
+}
+
+// AddError adds an error message to the map (so long as no entry already exists for
+// the given key).
+func (v *Validator) AddError(key, message string) {
+	if _, exists := v.Errors[key]; !exists {
+		v.Errors[key] = message
 	}
 }
 
-// the serverErrorResponse() method for unexpected problems at runtime 500 code
-func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
-	app.logError(r, err)
-
-	message := "the server encountered a problem and could not process your request"
-	app.errorResponse(w, r, http.StatusInternalServerError, message)
+// Check adds an error message to the map only if a validation check is not 'ok'.
+func (v *Validator) Check(ok bool, key, message string) {
+	if !ok {
+		v.AddError(key, message)
+	}
 }
 
-// the notFoundResponse() method for 404 code
-func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request) {
-	message := "the requested resource could not be found"
-	app.errorResponse(w, r, http.StatusNotFound, message)
+// Generic function which returns true if a specific value is in a list.
+func PermittedValue[T comparable](value T, permittedValues ...T) bool {
+	for i := range permittedValues {
+		if value == permittedValues[i] {
+			return true
+		}
+	}
+	return false
 }
 
-// the methodNotAllowedResponse() method for 405
-func (app *application) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
-	message := fmt.Sprintf("the %s method is not supported for this response", r.Method)
-	app.errorResponse(w, r, http.StatusMethodNotAllowed, message)
+// Matches returns true if a string value matches a specific regexp pattern.
+func Matches(value string, rx *regexp.Regexp) bool {
+	return rx.MatchString(value)
 }
 
-// the badRequestResponse() method for 400
-func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
-	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
-}
-
-// Note that the errors parameter here has the type map[string]string, which is exactly
-// the same as the errors map contained in our Validator type.
-func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
-	app.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
-}
-
-func (app *application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
-	message := "rate limit exceeded"
-	app.errorResponse(w, r, http.StatusTooManyRequests, message)
-}
-
-func (app *application) invalidCredentialsResponse(w http.ResponseWriter, r *http.Request) {
-	message := "invalid authentication credentials"
-	app.errorResponse(w, r, http.StatusUnauthorized, message)
-}
-
-func (app *application) invalidAuthenticationTokenResponse(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("WWW-Authenticate", "Bearer")
-	message := "invalid or missing authentication token"
-	app.errorResponse(w, r, http.StatusUnauthorized, message)
-}
-
-func (app *application) authenticationRequiredResponse(w http.ResponseWriter, r *http.Request) {
-	message := "you must be authenticated to access this resource"
-	app.errorResponse(w, r, http.StatusUnauthorized, message)
-}
-func (app *application) inactiveAccountResponse(w http.ResponseWriter, r *http.Request) {
-	message := "your user account must be activated to access this resource"
-	app.errorResponse(w, r, http.StatusForbidden, message)
-}
-
-func (app *application) notPermittedResponse(w http.ResponseWriter, r *http.Request) {
-	message := "your user account doesn't have the necessary permissions to access this resource"
-	app.errorResponse(w, r, http.StatusForbidden, message)
-}
-
-func (app *application) notAdminResponse(w http.ResponseWriter, r *http.Request) {
-	message := "your user account doesn't have the necessary permissions to access this resource"
-	app.errorResponse(w, r, http.StatusForbidden, message)
+// Generic function which returns true if all values in a slice are unique.
+func Unique[T comparable](values []T) bool {
+	uniqueValues := make(map[T]bool)
+	for _, value := range values {
+		uniqueValues[value] = true
+	}
+	return len(values) == len(uniqueValues)
 }
