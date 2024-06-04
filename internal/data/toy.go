@@ -176,19 +176,21 @@ WHERE id = 1$
 
 }
 
-func (t ToyModel) GetAll(title string, filters Filters) ([]*Toy, Metadata, error) {
+func (t ToyModel) GetAll(title string, skills []string, categories []string, recAge string, filters Filters) ([]*Toy, Metadata, error) {
 	query := fmt.Sprintf(`
 SELECT count(*) OVER(), id, created_at, title, desc, details, skills, categories, recommended_age, manufacturer, value, is_available, wait_list
 FROM toys
 WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
-AND (genres @> $2 OR $2 = '{}')
+AND (skills @> $2 OR $2 = '{}')
+AND (categories @> $3 OR $3 = '{}')
+AND (recommended_age @> $4 OR $4 = '{}')
 ORDER BY %s %s, id ASC
-LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortDirection())
+LIMIT $5 OFFSET $6`, filters.sortColumn(), filters.sortDirection())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []any{title, filters.limit(), filters.offset()}
+	args := []any{title, pq.Array(skills), pq.Array(categories), pq.Array(recAge), filters.limit(), filters.offset()}
 
 	rows, err := t.DB.QueryContext(ctx, query, args...)
 	if err != nil {
