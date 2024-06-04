@@ -1,6 +1,9 @@
 package validator
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 // Declare a regular expression for sanity checking the format of email addresses (we'll
 // use this later in the book). If you're interested, this regular expression pattern is
@@ -12,11 +15,14 @@ var (
 )
 
 // Define a new Validator type which contains a map of validation errors.
+
+
 type Validator struct {
 	Errors map[string]string
 }
 
 // New is a helper which creates a new Validator instance with an empty errors map.
+
 func New() *Validator {
 	return &Validator{Errors: make(map[string]string)}
 }
@@ -30,6 +36,9 @@ func (v *Validator) Valid() bool {
 // the given key).
 func (v *Validator) AddError(key, message string) {
 	if _, exists := v.Errors[key]; !exists {
+
+func (v *Validator) AddError(key, message string) {
+	if _, exist := v.Errors[key]; !exist {
 		v.Errors[key] = message
 	}
 }
@@ -52,11 +61,13 @@ func PermittedValue[T comparable](value T, permittedValues ...T) bool {
 }
 
 // Matches returns true if a string value matches a specific regexp pattern.
+
 func Matches(value string, rx *regexp.Regexp) bool {
 	return rx.MatchString(value)
 }
 
 // Generic function which returns true if all values in a slice are unique.
+
 func Unique[T comparable](values []T) bool {
 	uniqueValues := make(map[T]bool)
 	for _, value := range values {
@@ -64,3 +75,13 @@ func Unique[T comparable](values []T) bool {
 	}
 	return len(values) == len(uniqueValues)
 }
+
+func (v *Validator) ImageUrlsCheck(images []string) bool {
+	for i := range images {
+		if !strings.HasPrefix(images[i], "http://") {
+			return false
+		}
+	}
+	return true
+}
+
