@@ -8,7 +8,6 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	amqp "github.com/rabbitmq/amqp091-go"
-	_ "github.com/streadway/amqp"
 	"log"
 	"net/http"
 	"os"
@@ -56,22 +55,14 @@ func main() {
 	}
 
 	// stripeKey := env.StripeSecret
+	serverAddress := env.ServerAddress
 	dbHost := env.DBSource
-	smtpUser := env.SMTPUsername
-	smtpPass := env.SMTPPassword
 	rabbitMQHost := env.RabbitMQSource
 
 	flag.IntVar(&cfg.port, "port", serverAddress, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
-
 	flag.StringVar(&cfg.db.dsn, "db-dsn", dbHost, "PostgreSQL DSN")
 
-	flag.IntVar(&cfg.port, "port", 4000, "API server port")
-	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
-
-	flag.StringVar(&cfg.db.dsn, "db-dsn", dbHost, "PostgreSQL DSN")
-
-	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
 
@@ -147,7 +138,7 @@ func main() {
 }
 
 // The openDB() function returns a sql.DB connection pool.
-func openDB(cfg config) (*sql.DB, error) {
+func openDB(cfg configuration) (*sql.DB, error) {
 
 	db, err := sql.Open("postgres", cfg.db.dsn)
 	if err != nil {
